@@ -1,0 +1,235 @@
+
+from datetime import datetime
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
+
+
+class CarBooking(models.Model):
+    _name = 'car.booking'
+    _description = 'Car Booking'
+
+    name = fields.Char(string='Mã tham chiếu đơn đặt xe', readonly=True, copy=False)
+
+    def _partner_ids_domain_customer(self):
+        if self.env.user.has_group('car.group_admin'):
+            partner_id = self.env['res.partner'].search([('role', '=', 'customer')])
+            print(partner_id.ids)  # In ra danh sách ID của khách hàng
+            return [('id', 'in', partner_id.ids)]
+        elif self.env.user.has_group('car.group_customer'):
+            print(self.env.user.partner_id.ids)  # In ra ID của đối tác người dùng hiện tại
+            return [('id', 'in', self.env.user.partner_id.ids)]
+        else:
+            return [('id', 'in', [])]
+
+    def _partner_ids_domain_driver(self):
+        if self.env.user.has_group('car.group_admin'):
+            partner_id = self.env['res.partner'].search([('role', '=', 'driver'), ('driver_status', '=', 'online')])
+            return [('id', 'in', partner_id.ids)]
+        elif self.env.user.has_group('car.group_customer'):
+            return [('id', 'in', self.env.user.partner_id.ids)]
+        else:
+            return [('id', 'in', [])]
+
+
+    customer_id = fields.Many2one('res.partner', string='Khách hàng đặt xe', domain=_partner_ids_domain_customer,
+                                  required=True)
+    vehicle_id = fields.Many2one('fleet.vehicle', string='Xe được đặt', required=True)
+    driver_id = fields.Many2one('res.partner', string='Tài xế nhận chuyến xe', domain=_partner_ids_domain_driver,
+                                required=True)
+    booking_date = fields.Datetime(string='Ngày đặt xe', required=True, default=fields.Datetime.now)
+    pickup_date = fields.Datetime(string='Ngày nhận xe', required=True)
+    return_date = fields.Datetime(string='Ngày trả xe', required=True)
+    total_price = fields.Float(string='Tổng giá thuê xe', compute='_compute_total_price', readonly=True, store=True)
+    state = fields.Selection([
+        ('nhap', 'Nháp'),
+        ('xac_nhan', 'Xác nhận'),
+        ('dang_thuc_hien', 'Đang thực hiện'),
+        ('hoan_thanh', 'Hoàn thành'),
+        ('huy', 'Hủy')
+    ], string='Trạng thái đặt xe', default='nhap')
+    file = fields.Html('Để lại đánh giá : ')
+
+    @api.constrains('customer_id')
+    def _check_customer_role(self):
+        for record in self:
+            if record.customer_id and record.customer_id.role != 'customer':
+                raise ValidationError("Người được chọn không có vai trò là 'customer'.")
+
+    @api.constrains('driver_id')
+    def _check_driver_role(self):
+        for record in self:
+            if record.driver_id and record.driver_id.role != 'driver':
+                raise ValidationError("Người được chọn không có vai trò là 'driver'.")
+
+    # TU DONG TANG REF
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('name', _('New')) == _('New'):
+                vals['name'] = self.env['ir.sequence'].next_by_code('car.booking') or _('New')
+        return super().create(vals_list)
+
+    # NGAY TRA XE PHAI LON HON NGAY NHAN XE
+    @api.constrains('pickup_date', 'return_date')
+    def _check_dates(self):
+        for rec in self:
+            if rec.return_date <= rec.pickup_date:
+                raise ValidationError(_('Ngày trả xe phải sau ngày nhận xe.'))
+
+    # KHONG THE SUA THONG TIN KHI DON HANG DA HOAN THANH
+    @api.constrains('customer_id', 'vehicle_id', 'driver_id', 'pickup_date', 'return_date')
+    def _check_if_completed(self):
+        for record in self:
+            if record.state == 'hoan_thanh':
+                raise ValidationError("Không thể sửa thông tin khi đơn đã hoàn thành.")
+
+    # TINH TONG SO TIEN PHAI TRA
+    @api.depends('pickup_date', 'return_date', 'vehicle_id.rental_price_per_day')
+    def _compute_total_price(self):
+        for rec in self:
+            if rec.pickup_date and rec.return_date and rec.return_date > rec.pickup_date:
+                rental_price_per_day = rec.vehicle_id.rental_price_per_day or 0
+                days = (rec.return_date - rec.pickup_date).days or 1
+                # Đảm bảo ít nhất 1 ngày
+                rec.total_price = days * rental_price_per_day
+            else:
+                rec.total_price = 0
+
+    @api.constrains('pickup_date', 'return_date', 'vehicle_id', 'driver_id', 'state')
+    def _check_vehicle_and_driver_overlap(self):
+        for rec in self:
+            if rec.state not in ['xac_nhan', 'dang_thuc_hien']:
+                continue
+
+            domain = [
+                ('id', '!=', rec.id),
+                ('pickup_date', '<', rec.return_date),
+                ('return_date', '>', rec.pickup_date),
+                ('state', 'in', ['xac_nhan', 'dang_thuc_hien']),
+            ]
+
+            # Kiểm tra trùng xe
+            if rec.vehicle_id:
+                overlapping_vehicle = self.env['car.booking'].sudo().search(domain + [
+                    ('vehicle_id', '=', rec.vehicle_id.id)
+                ], limit=1)
+                if overlapping_vehicle:
+                    raise ValidationError(_("Xe đã được đặt trong khoảng thời gian này."))
+
+            # Kiểm tra trùng tài xế
+            if rec.driver_id:
+                overlapping_driver = self.env['car.booking'].sudo().search(domain + [
+                    ('driver_id', '=', rec.driver_id.id)
+                ], limit=1)
+                if overlapping_driver:
+                    raise ValidationError(_("Tài xế đã được đặt trong khoảng thời gian này."))
+    # Button
+
+    def action_nhap(self):
+        for rec in self:
+            if rec.state != 'nhap':
+                raise ValidationError(_("Trạng thái không thể chuyển trực tiếp từ '%s' đến 'Nháp'." % rec.state))
+            rec.state = 'nhap'
+
+    def action_xac_nhan(self):
+        for rec in self:
+            if rec.state != 'nhap':
+                raise ValidationError(_("Chỉ có thể xác nhận từ trạng thái 'Nháp'."))
+            rec.state = 'xac_nhan'
+
+    def action_dang_thuc_hien(self):
+        for rec in self:
+            if rec.state != 'xac_nhan':
+                raise ValidationError(_("Trạng thái chỉ có thể chuyển từ 'Xác nhận' đến 'Đang thực hiện'."))
+            rec.state = 'dang_thuc_hien'
+
+    def action_hoan_thanh(self):
+        for rec in self:
+            if rec.state != 'dang_thuc_hien':
+                raise ValidationError(_("Trạng thái chỉ có thể chuyển từ 'Đang thực hiện' đến 'Hoàn thành'."))
+            rec.state = 'hoan_thanh'
+
+    def action_huy(self):
+        for rec in self:
+            if rec.state == 'hoan_thanh':
+                raise ValidationError(_("Không thể hủy đơn khi đơn đã hoàn thành."))
+            rec.state = 'nhap'
+
+
+    @api.constrains('pickup_date', 'return_date', 'customer_id')
+    def _check_time_overlap_for_customer(self):
+        for record in self:
+            # Chỉ kiểm tra nếu người dùng là khách hàng và đang đặt cho chính mình
+            overlapping_bookings = self.sudo().search([
+                ('customer_id', '=', record.customer_id.id),
+                ('id', '!=', record.id),
+                ('pickup_date', '<', record.return_date),
+                ('return_date', '>', record.pickup_date),
+            ])
+            if overlapping_bookings:
+                raise ValidationError("Bạn đã có đơn đặt xe khác trùng thời gian.")
+
+    @api.model
+    def get_bookings_by_month(self):
+        domain = [('state', '=', 'hoan_thanh')]
+        bookings = self.read_group(
+            domain=domain,
+            fields=['id'],
+            groupby=['pickup_date:month'],
+            orderby='pickup_date'
+        )
+
+        result = []
+        for b in bookings:
+            month_field = b.get('pickup_date:month')
+            if month_field:
+                month = fields.Date.to_string(month_field)[:7]  # YYYY-MM
+                result.append({
+                    'month': month,
+                    'count': b.get('__count', 0)
+                })
+        return result
+
+    @api.model
+    def get_most_booked_vehicles(self, limit=5):
+        domain = [('state', '=', 'hoan_thanh')]
+        bookings = self.read_group(
+            domain=domain,
+            fields=['vehicle_id'],
+            groupby=['vehicle_id'],
+            orderby='__count desc',
+            limit=limit
+        )
+
+        result = []
+        for b in bookings:
+            vehicle_data = b.get('vehicle_id')
+            if vehicle_data:
+                vehicle = self.env['fleet.vehicle'].browse(vehicle_data[0])
+                result.append({
+                    'vehicle': vehicle.name,
+                    'count': b.get('__count', 0)
+                })
+        return result
+
+    @api.model
+    def get_top_customers(self, limit=5):
+        domain = [('state', '=', 'hoan_thanh')]
+        bookings = self.read_group(
+            domain=domain,
+            fields=['customer_id'],
+            groupby=['customer_id'],
+            orderby='__count desc',
+            limit=limit
+        )
+
+        result = []
+        for b in bookings:
+            customer_data = b.get('customer_id')
+            if customer_data:
+                customer = self.env['res.partner'].browse(customer_data[0])
+                result.append({
+                    'customer': customer.name,
+                    'count': b.get('__count', 0)
+                })
+        return result

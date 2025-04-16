@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record model="ir.module.category" id="module_category_user_type">
+        <field name="name">User types</field>
+        <field name="description">Helps you manage users.</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record model="res.groups" id="group_admin">
+        <field name="name">Admin</field>
+        <field name="category_id" ref="module_category_user_type"/>
+    </record>
+
+    <record model="res.groups" id="group_customer">
+        <field name="name">Customer</field>
+        <field name="category_id" ref="module_category_user_type"/>
+    </record>
+
+    <record model="res.groups" id="group_driver">
+        <field name="name">Driver</field>
+        <field name="category_id" ref="module_category_user_type"/>
+    </record>
+
+    <record id="rule_res_users_customer" model="ir.rule">
+        <field name="name">Customer See Only Themselves</field>
+        <field name="model_id" ref="car.model_car_booking"/>
+        <field name="domain_force">[('customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('car.group_customer'))]"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="1"/>
+        <field name="perm_unlink" eval="0"/>
+    </record>
+
+
+    <record id="rule_group_customer_res_partner" model="ir.rule">
+        <field name="name">Customer See Only Themselves</field>
+        <field name="model_id" ref="car.model_res_partner"/>
+        <field name="domain_force">[]</field>
+        <field name="groups" eval="[(4, ref('car.group_customer'))]"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="0"/>
+        <field name="perm_create" eval="0"/>
+        <field name="perm_unlink" eval="0"/>
+    </record>
+
+    <record id="rule_car_booking_driver_read" model="ir.rule">
+        <field name="name">Driver: can see assigned bookings</field>
+        <field name="model_id" ref="car.model_car_booking"/>
+        <field name="domain_force">[('driver_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('car.group_driver'))]"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="0"/>
+        <field name="perm_create" eval="0"/>
+        <field name="perm_unlink" eval="0"/>
+    </record>
+
+    <record id="rule_car_booking_driver_write_in_progress" model="ir.rule">
+        <field name="name">Driver: can update booking if in 'Đang thực hiện'</field>
+        <field name="model_id" ref="car.model_car_booking"/>
+        <field name="domain_force">[('driver_id', '=', user.partner_id.id), ('state', 'in', ['xac_nhan',
+            'dang_thuc_hien'])]
+        </field>
+        <field name="groups" eval="[(4, ref('car.group_driver'))]"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="0"/>
+        <field name="perm_unlink" eval="0"/>
+    </record>
+
+
+    <!-- Rule để tài xế chỉ xem partner cần thiết (optional, có thể mở rộng sau) -->
+    <record id="rule_driver_res_partner" model="ir.rule">
+        <field name="name">Driver can see partners</field>
+        <field name="model_id" ref="car.model_res_partner"/>
+        <field name="domain_force">[]</field>
+        <field name="groups" eval="[(4, ref('car.group_driver'))]"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="0"/>
+        <field name="perm_create" eval="0"/>
+        <field name="perm_unlink" eval="0"/>
+    </record>
+</odoo>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_car_root"
+              name="Quản lý thuê xe"
+              sequence="10"/>
+
+    <menuitem id="menu_car_booking_root"
+              name="Thông tin đặt xe"
+              parent="menu_car_root"
+              sequence="10"/>
+
+    <menuitem id="menu_fleet_vehicle_root"
+              name="Thông tin xe"
+              parent="menu_car_root"
+              sequence="10"/>
+
+    <menuitem id="menu_res_partner_root"
+              name="Khách hàng và tài xế"
+              groups="car.group_admin"
+              parent="menu_car_root"
+              sequence="10"/>
+
+
+</odoo>
