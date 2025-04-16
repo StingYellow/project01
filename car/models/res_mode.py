@@ -1,10 +1,12 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-
 class res_mode(models.Model):
     _name = "res.mode"
+    _description = 'Res Mode'
+    _rec_name = "name"
 
+    name=fields.Char(string='Tên')
     role = fields.Selection([('customer', 'Customer'), ('driver', 'Driver')], string='Role', required=True)
     car_booking_customer_ids = fields.One2many(
         'car.booking',
@@ -66,11 +68,14 @@ class res_mode(models.Model):
             if rec.role == 'customer' and not rec.address:
                 raise ValidationError("Khách hàng bắt buộc phải có địa chỉ!")
 
-    @api.constrains('role','car_booking_customer_ids')
+    @api.constrains('role')
     def _check_role_change_from_customer(self):
         for partner in self:
-            if partner.role == 'driver':
-                # Kiểm tra các đơn chưa hoàn thành hoặc chưa hủy
+            # Lấy giá trị cũ từ bản ghi trước khi thay đổi
+            old_role = partner._origin.role if partner._origin else False
+
+            # Kiểm tra khi chuyển từ customer sang driver
+            if old_role == 'customer' and partner.role == 'driver':
                 active_bookings = self.env['car.booking'].search([
                     ('customer_id', '=', partner.id),
                     ('state', 'not in', ['hoan_thanh', 'huy']),
@@ -79,7 +84,9 @@ class res_mode(models.Model):
                     raise ValidationError(
                         "Không thể chuyển vai trò sang 'driver' vì người này còn đơn đặt xe chưa hoàn thành hoặc chưa hủy."
                     )
-            if partner.role != 'driver':
+
+            # Kiểm tra khi chuyển từ driver sang vai trò khác
+            if old_role == 'driver' and partner.role != 'driver':
                 active_driver_bookings = self.env['car.booking'].search([
                     ('driver_id', '=', partner.id),
                     ('state', 'not in', ['hoan_thanh', 'huy']),

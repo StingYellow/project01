@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
@@ -12,29 +11,40 @@ class CarBooking(models.Model):
 
     def _partner_ids_domain_customer(self):
         if self.env.user.has_group('car.group_admin'):
-            partner_id = self.env['res.partner'].search([('role', '=', 'customer')])
-            print(partner_id.ids)  # In ra danh sách ID của khách hàng
-            return [('id', 'in', partner_id.ids)]
+            partners = self.env['res.mode'].search([('role', '=', 'customer')])
+            return [('id', 'in', partners.ids)]
         elif self.env.user.has_group('car.group_customer'):
-            print(self.env.user.partner_id.ids)  # In ra ID của đối tác người dùng hiện tại
-            return [('id', 'in', self.env.user.partner_id.ids)]
-        else:
-            return [('id', 'in', [])]
+            # Tìm bản ghi res.mode tương ứng với user hiện tại
+            partner = self.env['res.mode'].search([
+                ('email', '=', self.env.user.email),
+                ('role', '=', 'customer')
+            ], limit=1)
+            if partner:
+                return [('id', '=', partner.id)]
+        return [('id', 'in', [])]
 
     def _partner_ids_domain_driver(self):
         if self.env.user.has_group('car.group_admin'):
-            partner_id = self.env['res.partner'].search([('role', '=', 'driver'), ('driver_status', '=', 'online')])
-            return [('id', 'in', partner_id.ids)]
+            partners = self.env['res.mode'].search([
+                ('role', '=', 'driver'),
+                ('driver_status', '=', 'online')
+            ])
+            return [('id', 'in', partners.ids)]
         elif self.env.user.has_group('car.group_customer'):
-            return [('id', 'in', self.env.user.partner_id.ids)]
+            # Nếu khách hàng cần chọn tài xế online
+            partners = self.env['res.mode'].search([
+                ('role', '=', 'driver'),
+                ('driver_status', '=', 'online')
+            ])
+            return [('id', 'in', partners.ids)]
         else:
             return [('id', 'in', [])]
 
 
-    customer_id = fields.Many2one('res.partner', string='Khách hàng đặt xe', domain=_partner_ids_domain_customer,
+    customer_id = fields.Many2one('res.mode', string='Khách hàng đặt xe', domain=_partner_ids_domain_customer,
                                   required=True)
     vehicle_id = fields.Many2one('fleet.vehicle', string='Xe được đặt', required=True)
-    driver_id = fields.Many2one('res.partner', string='Tài xế nhận chuyến xe', domain=_partner_ids_domain_driver,
+    driver_id = fields.Many2one('res.mode', string='Tài xế nhận chuyến xe', domain=_partner_ids_domain_driver,
                                 required=True)
     booking_date = fields.Datetime(string='Ngày đặt xe', required=True, default=fields.Datetime.now)
     pickup_date = fields.Datetime(string='Ngày nhận xe', required=True)
@@ -155,16 +165,15 @@ class CarBooking(models.Model):
                 raise ValidationError(_("Không thể hủy đơn khi đơn đã hoàn thành."))
             rec.state = 'nhap'
 
-
     @api.constrains('pickup_date', 'return_date', 'customer_id')
     def _check_time_overlap_for_customer(self):
         for record in self:
-            # Chỉ kiểm tra nếu người dùng là khách hàng và đang đặt cho chính mình
             overlapping_bookings = self.sudo().search([
                 ('customer_id', '=', record.customer_id.id),
                 ('id', '!=', record.id),
                 ('pickup_date', '<', record.return_date),
                 ('return_date', '>', record.pickup_date),
+                ('state', 'in', ['xac_nhan', 'dang_thuc_hien']),  # Chỉ kiểm tra đơn đang hoạt động
             ])
             if overlapping_bookings:
                 raise ValidationError("Bạn đã có đơn đặt xe khác trùng thời gian.")
@@ -227,9 +236,10 @@ class CarBooking(models.Model):
         for b in bookings:
             customer_data = b.get('customer_id')
             if customer_data:
-                customer = self.env['res.partner'].browse(customer_data[0])
+                customer = self.env['res.mode'].browse(customer_data[0])
                 result.append({
                     'customer': customer.name,
                     'count': b.get('__count', 0)
                 })
         return result
+

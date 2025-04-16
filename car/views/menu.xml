@@ -14,7 +14,7 @@
               parent="menu_car_root"
               sequence="10"/>
 
-    <menuitem id="menu_res_partner_root"
+    <menuitem id="menu_res_mode_root"
               name="Khách hàng và tài xế"
               groups="car.group_admin"
               parent="menu_car_root"

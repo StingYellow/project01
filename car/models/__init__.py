@@ -1,5 +1,5 @@
 from . import car_booking
 from . import fleet_vehicle
-from . import res_partner
+from . import res_mode
 
 
