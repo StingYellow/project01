@@ -26,7 +26,7 @@
     <!-- Security Rules -->
 
     <!-- Customer: chỉ thấy booking của chính mình -->
-     <record id="rule_car_booking_customer" model="ir.rule">
+    <record id="rule_car_booking_customer" model="ir.rule">
         <field name="name">Customer: Only see their bookings</field>
         <field name="model_id" ref="car.model_car_booking"/>
         <field name="domain_force">[('customer_id.user_id', '=', user.id)]</field>
@@ -53,7 +53,7 @@
     <record id="rule_res_mode_customer" model="ir.rule">
         <field name="name">Customer: Read their own res.mode</field>
         <field name="model_id" ref="car.model_res_mode"/>
-        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="domain_force">['|', ('user_id', '=', user.id), ('role', '=', 'driver')]</field>
         <field name="groups" eval="[(4, ref('car.group_customer'))]"/>
         <field name="perm_read" eval="1"/>
         <field name="perm_write" eval="1"/>
@@ -73,14 +73,15 @@
         <field name="perm_unlink" eval="0"/>
     </record>
 
-    <!-- Driver: có thể cập nhật booking ở trạng thái xác nhận hoặc đang thực hiện -->
+    <!-- Driver: có thể cập nhật booking nếu đang xác nhận hoặc đang thực hiện -->
     <record id="rule_car_booking_driver_write" model="ir.rule">
         <field name="name">Driver: Update booking if confirmed/in progress</field>
         <field name="model_id" ref="car.model_car_booking"/>
         <field name="domain_force">[
             ('driver_id', '=', user.partner_id.id),
             ('state', 'in', ['xac_nhan', 'dang_thuc_hien'])
-        ]</field>
+            ]
+        </field>
         <field name="groups" eval="[(4, ref('car.group_driver'))]"/>
         <field name="perm_read" eval="1"/>
         <field name="perm_write" eval="1"/>
@@ -88,10 +89,10 @@
         <field name="perm_unlink" eval="0"/>
     </record>
 
-    <!-- Driver: được xem các thông tin cần thiết (res.partner mở rộng) -->
-    <record id="rule_res_partner_driver" model="ir.rule">
-        <field name="name">Driver: Read partners (res.partner)</field>
-        <field name="model_id" ref="car.model_res_mode"/>
+    <!-- Driver: được xem các bản ghi res.partner (ví dụ khách hàng, tài xế khác) -->
+    <record id="rule_res_partner_read_for_driver" model="ir.rule">
+        <field name="name">Driver: Can read necessary partner info</field>
+        <field name="model_id" ref="base.model_res_partner"/>
         <field name="domain_force">[]</field>
         <field name="groups" eval="[(4, ref('car.group_driver'))]"/>
         <field name="perm_read" eval="1"/>
@@ -99,5 +100,6 @@
         <field name="perm_create" eval="0"/>
         <field name="perm_unlink" eval="0"/>
     </record>
+
 
 </odoo>
