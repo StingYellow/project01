@@ -9,5 +9,6 @@
         'views/fleet_vehicle.xml',
         'views/res_mode.xml',
         'views/car_report.xml',
+        'views/car_company.xml',
     ],
 }

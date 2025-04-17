@@ -1,13 +1,13 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 
-
 class FleetVehicle(models.Model):
     _name = 'fleet.vehicle'
     _description = 'Fleet Vehicle'
     _rec_name = 'display_name'
 
     name = fields.Char(string='Tên xe', required=True)
+    car_company_id =fields.Many2one('car.company' ,string="Tên công ty")
     seat_capacity = fields.Integer(string='Số ghế trên xe', required=True)
     availability_status = fields.Selection([('san_sang', 'Sẵn sàng'),('dang_bao_tri', 'Đang bảo trì')],
                                           default='san_sang', string="Tình trạng xe")
@@ -16,6 +16,12 @@ class FleetVehicle(models.Model):
     rental_price_per_day = fields.Float(string='Giá thuê xe theo ngày',required=True)
     display_name = fields.Char(string='Tên hiển thị', compute='_compute_display_name', store=True)
 
+    is_active = fields.Boolean(
+        string="Công ty đang hoạt động",
+        related='car_company_id.is_active',
+        store=True,
+        readonly=True
+    )
 
     @api.depends('name', 'license_plate', 'seat_capacity')
     def _compute_display_name(self):

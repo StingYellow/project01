@@ -26,10 +26,10 @@
     <!-- Security Rules -->
 
     <!-- Customer: chỉ thấy booking của chính mình -->
-    <record id="rule_car_booking_customer" model="ir.rule">
+     <record id="rule_car_booking_customer" model="ir.rule">
         <field name="name">Customer: Only see their bookings</field>
         <field name="model_id" ref="car.model_car_booking"/>
-        <field name="domain_force">[('customer_id', '=', user.partner_id.id)]</field>
+        <field name="domain_force">[('customer_id.user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('car.group_customer'))]"/>
         <field name="perm_read" eval="1"/>
         <field name="perm_write" eval="1"/>
@@ -37,14 +37,26 @@
         <field name="perm_unlink" eval="0"/>
     </record>
 
-    <!-- Customer: chỉ xem danh sách tài xế (res.partner mở rộng) -->
-    <record id="rule_res_partner_customer" model="ir.rule">
-        <field name="name">Customer: Read drivers (res.partner)</field>
+    <!-- Admin có thể xem và quản lý tất cả các đơn hàng -->
+    <record id="rule_car_booking_admin" model="ir.rule">
+        <field name="name">Admin: Access all bookings</field>
+        <field name="model_id" ref="car.model_car_booking"/>
+        <field name="domain_force">[(1,'=',1)]</field>
+        <field name="groups" eval="[(4, ref('car.group_admin'))]"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="1"/>
+        <field name="perm_unlink" eval="1"/>
+    </record>
+
+    <!-- Cho phép Customer xem thông tin res.mode liên quan đến họ -->
+    <record id="rule_res_mode_customer" model="ir.rule">
+        <field name="name">Customer: Read their own res.mode</field>
         <field name="model_id" ref="car.model_res_mode"/>
-        <field name="domain_force">[]</field>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('car.group_customer'))]"/>
         <field name="perm_read" eval="1"/>
-        <field name="perm_write" eval="0"/>
+        <field name="perm_write" eval="1"/>
         <field name="perm_create" eval="0"/>
         <field name="perm_unlink" eval="0"/>
     </record>

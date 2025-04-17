@@ -4,9 +4,10 @@ from odoo.exceptions import ValidationError
 class res_mode(models.Model):
     _name = "res.mode"
     _description = 'Res Mode'
-    _rec_name = "name"
+
 
     name=fields.Char(string='Tên')
+    user_id = fields.Many2one('res.users', string="User")
     role = fields.Selection([('customer', 'Customer'), ('driver', 'Driver')], string='Role', required=True)
     car_booking_customer_ids = fields.One2many(
         'car.booking',

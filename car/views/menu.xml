@@ -20,5 +20,9 @@
               parent="menu_car_root"
               sequence="10"/>
 
+    <menuitem id="menu_car_company_root"
+              name="Công ty xe"
+              parent="menu_car_root"
+              sequence="10"/>
 
 </odoo>

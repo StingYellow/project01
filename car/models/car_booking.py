@@ -6,6 +6,7 @@ from odoo.exceptions import ValidationError
 class CarBooking(models.Model):
     _name = 'car.booking'
     _description = 'Car Booking'
+    _order = 'booking_date desc'
 
     name = fields.Char(string='Mã tham chiếu đơn đặt xe', readonly=True, copy=False)
 
@@ -14,42 +15,59 @@ class CarBooking(models.Model):
             partners = self.env['res.mode'].search([('role', '=', 'customer')])
             return [('id', 'in', partners.ids)]
         elif self.env.user.has_group('car.group_customer'):
-            # Tìm bản ghi res.mode tương ứng với user hiện tại
-            partner = self.env['res.mode'].search([
-                ('email', '=', self.env.user.email),
+            # Tìm tất cả bản ghi res.mode của user hiện tại với role='customer'
+            partners = self.env['res.mode'].search([
+                ('user_id', '=', self.env.user.id),
                 ('role', '=', 'customer')
-            ], limit=1)
-            if partner:
-                return [('id', '=', partner.id)]
+            ])
+            return [('id', 'in', partners.ids)]
         return [('id', 'in', [])]
 
     def _partner_ids_domain_driver(self):
         if self.env.user.has_group('car.group_admin'):
+            # Admin có thể chọn tất cả tài xế online
             partners = self.env['res.mode'].search([
                 ('role', '=', 'driver'),
                 ('driver_status', '=', 'online')
             ])
             return [('id', 'in', partners.ids)]
-        elif self.env.user.has_group('car.group_customer'):
-            # Nếu khách hàng cần chọn tài xế online
-            partners = self.env['res.mode'].search([
-                ('role', '=', 'driver'),
-                ('driver_status', '=', 'online')
-            ])
-            return [('id', 'in', partners.ids)]
-        else:
-            return [('id', 'in', [])]
 
+        elif self.env.user.has_group('car.group_customer'):
+            # Khách hàng chỉ thấy tài xế online
+            partners = self.env['res.mode'].search([
+                ('role', '=', 'driver'),
+                ('driver_status', '=', 'online')
+            ])
+            return [('id', 'in', partners.ids)]
+
+        # Trả về danh sách rỗng nếu người dùng không thuộc nhóm nào
+        return [('id', 'in', [])]
 
     customer_id = fields.Many2one('res.mode', string='Khách hàng đặt xe', domain=_partner_ids_domain_customer,
                                   required=True)
-    vehicle_id = fields.Many2one('fleet.vehicle', string='Xe được đặt', required=True)
+    vehicle_id = fields.Many2one(
+        'fleet.vehicle',
+        string='Xe',
+        required=True,
+        help="Chọn xe để đặt"
+    )
+    # Thêm trường liên kết đến công ty xe (tự động lấy từ xe)
+    company_id = fields.Many2one(
+        'car.company',
+        string='Công ty xe',
+        related='vehicle_id.car_company_id',
+        store=True,
+        readonly=True,
+        help="Công ty sở hữu xe"
+    )
     driver_id = fields.Many2one('res.mode', string='Tài xế nhận chuyến xe', domain=_partner_ids_domain_driver,
                                 required=True)
     booking_date = fields.Datetime(string='Ngày đặt xe', required=True, default=fields.Datetime.now)
     pickup_date = fields.Datetime(string='Ngày nhận xe', required=True)
     return_date = fields.Datetime(string='Ngày trả xe', required=True)
     total_price = fields.Float(string='Tổng giá thuê xe', compute='_compute_total_price', readonly=True, store=True)
+    # Thêm trường amount để dùng cho báo cáo doanh thu
+    amount = fields.Float(string='Doanh thu', related='total_price', store=True, readonly=True)
     state = fields.Selection([
         ('nhap', 'Nháp'),
         ('xac_nhan', 'Xác nhận'),
@@ -133,6 +151,7 @@ class CarBooking(models.Model):
                 ], limit=1)
                 if overlapping_driver:
                     raise ValidationError(_("Tài xế đã được đặt trong khoảng thời gian này."))
+
     # Button
 
     def action_nhap(self):
@@ -243,3 +262,49 @@ class CarBooking(models.Model):
                 })
         return result
 
+    # Thêm phương thức mới để báo cáo theo công ty
+    @api.model
+    def get_bookings_by_company(self, start_date=None, end_date=None):
+        domain = [('state', '=', 'hoan_thanh')]
+
+        # Thêm điều kiện lọc theo khoảng thời gian nếu có
+        if start_date:
+            domain.append(('pickup_date', '>=', start_date))
+        if end_date:
+            domain.append(('pickup_date', '<=', end_date))
+
+        bookings = self.read_group(
+            domain=domain,
+            fields=['amount', 'id'],
+            groupby=['company_id'],
+            orderby='company_id'
+        )
+
+        result = []
+        for b in bookings:
+            company_data = b.get('company_id')
+            if company_data:
+                company = self.env['car.company'].browse(company_data[0])
+                result.append({
+                    'company': company.name,
+                    'booking_count': b.get('__count', 0),
+                    'total_amount': b.get('amount', 0)
+                })
+        return result
+
+    @api.constrains('vehicle_id')
+    def _check_vehicle_company_active(self):
+        for rec in self:
+            company = rec.vehicle_id.car_company_id
+            if company and not company.is_active:
+                raise ValidationError(
+                    "Không thể đặt xe thuộc công ty đang ngưng hoạt động."
+                )
+
+    def write(self, vals):
+        for record in self:
+            # Chặn import
+            if self.env.context.get('import_file') and record.state != 'nhap':
+                raise ValidationError(_("Không thể import chỉnh sửa đơn đã xác nhận hoặc xử lý."))
+
+        return super().write(vals)

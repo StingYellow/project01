@@ -29,7 +29,7 @@
                             <field name="name"/>
                             <field name="customer_id"   
                                    readonly="state in ['xac_nhan', 'dang_thuc_hien','hoan_thanh']"/>
-                            <field name="vehicle_id" domain="[('availability_status','=','san_sang')]"
+                            <field name="vehicle_id" domain="[('availability_status','=','san_sang'),('car_company_id.is_active','=',True)]"
                                    readonly="state in ['xac_nhan', 'dang_thuc_hien','hoan_thanh']"/>
                             <field name="driver_id" domain="[('driver_status', '=', 'online'),('role','=','driver')]"
                                    readonly="state in ['xac_nhan', 'dang_thuc_hien','hoan_thanh']"/>
@@ -90,6 +90,7 @@
         <field name="name">Thông tin đặt xe</field>
         <field name="res_model">car.booking</field>
         <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_car_booking_list"/>
     </record>
 
     <menuitem id="menu_car_booking"
