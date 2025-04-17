@@ -65,7 +65,7 @@
     <record id="rule_car_booking_driver_read" model="ir.rule">
         <field name="name">Driver: View own assigned bookings</field>
         <field name="model_id" ref="car.model_car_booking"/>
-        <field name="domain_force">[('driver_id', '=', user.partner_id.id)]</field>
+        <field name="domain_force">[('driver_id.user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('car.group_driver'))]"/>
         <field name="perm_read" eval="1"/>
         <field name="perm_write" eval="0"/>
@@ -78,7 +78,7 @@
         <field name="name">Driver: Update booking if confirmed/in progress</field>
         <field name="model_id" ref="car.model_car_booking"/>
         <field name="domain_force">[
-            ('driver_id', '=', user.partner_id.id),
+            ('driver_id.user_id', '=', user.id),
             ('state', 'in', ['xac_nhan', 'dang_thuc_hien'])
             ]
         </field>
