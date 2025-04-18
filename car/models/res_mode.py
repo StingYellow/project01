@@ -15,7 +15,7 @@ class res_mode(models.Model):
         string='Các đơn đặt xe'
     )
 
-    driver_license = fields.Char(string='Giấy phép lái xe', required=True)
+    driver_license = fields.Char(string='Giấy phép lái xe')
     driver_status = fields.Selection([('online', 'Online'), ('offline', 'Offline')],
                                      default="online", string='Trạng thái hoạt động của tài xế', required=True)
     phone = fields.Char(string='Số điện thoại', required=True)
@@ -68,37 +68,61 @@ class res_mode(models.Model):
             if rec.role == 'customer' and not rec.address:
                 raise ValidationError("Khách hàng bắt buộc phải có địa chỉ!")
 
-    @api.model
-    def create(self, vals):
-        return super().create(vals)
 
-    def write(self, vals):
-        if 'role' in vals:
-            for rec in self:
-                old_role = rec.role
-                new_role = vals.get('role')
 
-                if old_role != new_role:
-                    # Kiểm tra đơn hàng với vai trò khách hàng
-                    if old_role == 'customer':
-                        active_bookings = self.env['car.booking'].search([
-                            ('customer_id', '=', rec.id),
-                            ('state', 'not in', ['hoan_thanh', 'huy']),
-                        ])
-                        if active_bookings:
-                            raise ValidationError(
-                                "Không thể thay đổi vai trò khi người này còn đơn đặt xe chưa hoàn thành hoặc chưa hủy."
-                            )
+    @api.constrains('name', 'role', 'user_id', 'driver_license', 'driver_status',
+                    'phone','email','address')
+    def _check_vehicle_not_editable_if_active_booking(self):
+        for customer in self:
+            active_bookings = self.env['car.booking'].search([
+                ('customer_id', '=', customer.id),
+                ('state', 'not in', ['hoan_thanh', 'huy'])
+            ])
+            if active_bookings:
+                raise ValidationError(
+                    "Không thể chỉnh sửa thông tin khách hàng khi khách hàng đang trong đơn đặt chưa hoàn thành hoặc chưa hủy."
+                )
+        for driver in self:
+            active_bookings = self.env['car.booking'].search([
+                ('driver_id', '=', driver.id),
+                ('state', 'not in', ['hoan_thanh', 'huy'])
+            ])
+            if active_bookings:
+                raise ValidationError(
+                    "Không thể chỉnh sửa thông tin tài xế khi tài xế đang trong đơn đặt chưa hoàn thành hoặc chưa hủy."
+                )
 
-                    # Kiểm tra đơn hàng với vai trò tài xế
-                    if old_role == 'driver':
-                        active_driver_bookings = self.env['car.booking'].search([
-                            ('driver_id', '=', rec.id),
-                            ('state', 'not in', ['hoan_thanh', 'huy']),
-                        ])
-                        if active_driver_bookings:
-                            raise ValidationError(
-                                "Không thể thay đổi vai trò khi người này đang là tài xế trong các đơn chưa hoàn thành hoặc chưa hủy."
-                            )
-
-        return super().write(vals)
+    # @api.model
+    # def create(self, vals):
+    #     return super().create(vals)
+    #
+    # def write(self, vals):
+    #     if 'role' in vals:
+    #         for rec in self:
+    #             old_role = rec.role
+    #             new_role = vals.get('role')
+    #
+    #             if old_role != new_role:
+    #                 # Kiểm tra đơn hàng với vai trò khách hàng
+    #                 if old_role == 'customer':
+    #                     active_bookings = self.env['car.booking'].search([
+    #                         ('customer_id', '=', rec.id),
+    #                         ('state', 'not in', ['hoan_thanh', 'huy']),
+    #                     ])
+    #                     if active_bookings:
+    #                         raise ValidationError(
+    #                             "Không thể thay đổi vai trò khi người này còn đơn đặt xe chưa hoàn thành hoặc chưa hủy."
+    #                         )
+    #
+    #                 # Kiểm tra đơn hàng với vai trò tài xế
+    #                 if old_role == 'driver':
+    #                     active_driver_bookings = self.env['car.booking'].search([
+    #                         ('driver_id', '=', rec.id),
+    #                         ('state', 'not in', ['hoan_thanh', 'huy']),
+    #                     ])
+    #                     if active_driver_bookings:
+    #                         raise ValidationError(
+    #                             "Không thể thay đổi vai trò khi người này đang là tài xế trong các đơn chưa hoàn thành hoặc chưa hủy."
+    #                         )
+    #
+    #     return super().write(vals)

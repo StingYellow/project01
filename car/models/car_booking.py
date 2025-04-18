@@ -292,6 +292,7 @@ class CarBooking(models.Model):
                 })
         return result
 
+
     @api.constrains('vehicle_id')
     def _check_vehicle_company_active(self):
         for rec in self:
