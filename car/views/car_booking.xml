@@ -35,6 +35,7 @@
                                    readonly="state in ['xac_nhan', 'dang_thuc_hien','hoan_thanh']"/>
                         </group>
                         <group>
+
                             <field name="booking_date" readonly="state in ['xac_nhan', 'dang_thuc_hien','hoan_thanh']"/>
                             <field name="pickup_date" readonly="state in ['xac_nhan', 'dang_thuc_hien','hoan_thanh']"/>
                             <field name="return_date" readonly="state in ['xac_nhan', 'dang_thuc_hien','hoan_thanh']"/>
@@ -53,6 +54,8 @@
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="state"/>
+                <field name="driver_id"/>
+                <field name="vehicle_id"/>
                 <field name="pickup_date"/>
                 <field name="return_date"/>
                 <field name="total_price"/>

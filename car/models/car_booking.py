@@ -75,7 +75,7 @@ class CarBooking(models.Model):
         ('hoan_thanh', 'Hoàn thành'),
         ('huy', 'Hủy')
     ], string='Trạng thái đặt xe', default='nhap')
-    file = fields.Html('Để lại đánh giá : ')
+
 
     @api.constrains('customer_id')
     def _check_customer_role(self):
@@ -301,10 +301,11 @@ class CarBooking(models.Model):
                     "Không thể đặt xe thuộc công ty đang ngưng hoạt động."
                 )
 
-    def write(self, vals):
+    @api.constrains('customer_id', 'vehicle_id', 'driver_id', 'pickup_date', 'return_date')
+    def _check_editable_state(self):
         for record in self:
-            # Chặn import
-            if self.env.context.get('import_file') and record.state != 'nhap':
-                raise ValidationError(_("Không thể import chỉnh sửa đơn đã xác nhận hoặc xử lý."))
-
-        return super().write(vals)
+            if record.state in ['xac_nhan', 'dang_thuc_hien', 'hoan_thanh']:
+                raise ValidationError(_(
+                    "Không thể chỉnh sửa đơn đặt xe khi đơn đang ở trạng thái '%s'." %
+                    dict(self.fields_get(['state'])['state']['selection']).get(record.state)
+                ))

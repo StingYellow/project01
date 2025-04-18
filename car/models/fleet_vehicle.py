@@ -51,10 +51,9 @@ class FleetVehicle(models.Model):
             ], limit=1)
             if existing_vehicle:
                 raise ValidationError("Biển số xe đã tồn tại trong hệ thống!")
-            if len(vehicle.license_plate) > 8:
-                raise ValidationError("Biển số xe không thể quá 8 ký tự")
-            elif len(vehicle.license_plate) < 8:
-                raise ValidationError("Biển số xe không thể nhỏ hơn 8 ký tự")
+            if len(vehicle.license_plate) != 8:
+                raise ValidationError("Biển số xe 8 ký tự")
+
 
     @api.constrains('rental_price_per_day')
     def _check_rental_price(self):

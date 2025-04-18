@@ -25,11 +25,6 @@ class CarCompany(models.Model):
     @api.constrains('fax')
     def _check_fax(self):
         for record in self:
-            # Không được để trống (nếu không dùng required=True thì thêm dòng này)
-            if not record.fax:
-                raise ValidationError("Mã số thuế không được để trống.")
-
-
             # Kiểm tra trùng mã số thuế
             domain = [('fax', '=', record.fax)]
             if record.id:
