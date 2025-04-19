@@ -12,6 +12,7 @@ class CarCompany(models.Model):
     primary_contact_person = fields.Char(string="Người liên hệ chính",required=True)
     is_active = fields.Boolean(string="Đang hoạt động", default=True)
 
+
     @api.constrains('name')
     def _check_unique_name(self):
         for record in self:

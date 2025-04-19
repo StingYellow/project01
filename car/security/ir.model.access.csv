@@ -14,4 +14,5 @@ car.access_fleet_vehicle_driver,access_fleet_vehicle_driver,car.model_fleet_vehi
 car.access_res_mode_driver,access_res_mode_driver,car.model_res_mode,car.group_driver,1,0,0,0
 
 
-car.access_car_company,access_car_company,car.model_car_company,base.group_user,1,1,1,1
+access_car_company,access_car_company,model_car_company,base.group_user,1,1,1,1
+

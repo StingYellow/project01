@@ -7,7 +7,7 @@ class res_mode(models.Model):
     _description = 'Res Mode'
 
     name = fields.Char(string='Tên')
-    user_id = fields.Many2one('res.users', string="User")
+    user_id = fields.Many2one('res.users', string="User" ,required=True)
     role = fields.Selection([('customer', 'Customer'), ('driver', 'Driver')], string='Role', required=True)
     car_booking_customer_ids = fields.One2many(
         'car.booking',
@@ -20,7 +20,7 @@ class res_mode(models.Model):
                                      default="online", string='Trạng thái hoạt động của tài xế', required=True)
     phone = fields.Char(string='Số điện thoại', required=True)
     email = fields.Char(string='Địa chỉ email')
-    address = fields.Char(string='Địa chỉ khách hàng', required=True)
+    address = fields.Char(string='Địa chỉ khách hàng')
 
     @api.constrains('phone')
     def _check_unique_and_required_phone(self):
@@ -67,7 +67,6 @@ class res_mode(models.Model):
         for rec in self:
             if rec.role == 'customer' and not rec.address:
                 raise ValidationError("Khách hàng bắt buộc phải có địa chỉ!")
-
 
 
     @api.constrains('name', 'role', 'user_id', 'driver_license', 'driver_status',

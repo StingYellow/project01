@@ -14,7 +14,7 @@
                             <field name="user_id"/>
                             <field name="phone"/>
                             <field name="email"/>
-                            <field name="address"/>
+                            <field name="address" invisible="role == 'driver'"/>
                             <field name="driver_license" invisible="role != 'driver'"/>
                             <field name="driver_status" invisible="role != 'driver'"/>
                         </group>
@@ -35,6 +35,18 @@
             </list>
         </field>
     </record>
+    <record id="view_res_mode_search" model="ir.ui.view">
+        <field name="name">view.res.mode.search</field>
+        <field name="model">res.mode</field>
+        <field name="arch" type="xml">
+            <search>
+                <searchpanel>
+                    <field name="role" enable_counters="1" icon="fa-user" select="multi"/>
+                </searchpanel>
+            </search>
+        </field>
+    </record>
+
     <record id="action_res_mode" model="ir.actions.act_window">
         <field name="name">Thông tin xe</field>
         <field name="res_model">res.mode</field>
