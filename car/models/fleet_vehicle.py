@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api,_
 from odoo.exceptions import ValidationError
 
 class FleetVehicle(models.Model):
@@ -61,15 +61,29 @@ class FleetVehicle(models.Model):
             if rec.rental_price_per_day < 0:
                 raise ValidationError("Không thể nhập giá tiền âm!")
 
-    @api.constrains('name', 'seat_capacity', 'availability_status', 'license_plate', 'vehicle_type',
-                    'rental_price_per_day')
-    def _check_vehicle_not_editable_if_active_booking(self):
+    def write(self, vals):
+        Booking = self.env['car.booking']
         for vehicle in self:
-            active_bookings = self.env['car.booking'].search([
-                ('vehicle_id', '=', vehicle.id),
-                ('state', 'not in', ['hoan_thanh', 'huy'])
-            ])
-            if active_bookings:
-                raise ValidationError(
-                    "Không thể chỉnh sửa thông tin xe khi xe đang được sử dụng trong đơn đặt chưa hoàn thành hoặc chưa hủy."
-                )
+            # Kiểm tra nếu các field nhạy cảm bị sửa
+            fields_being_changed = set(vals.keys())
+            restricted_fields = {'name', 'seat_capacity', 'availability_status', 'license_plate', 'vehicle_type',
+                                 'rental_price_per_day'}
+
+            if fields_being_changed & restricted_fields:
+                if Booking.search_count([
+                    ('vehicle_id', '=', vehicle.id),
+                    ('state', 'not in', ['hoan_thanh', 'huy'])
+                ]) > 0:
+                    raise ValidationError(_(
+                        "Không thể chỉnh sửa thông tin xe khi xe đang được sử dụng trong đơn đặt chưa hoàn thành hoặc chưa hủy."
+                    ))
+
+        return super().write(vals)
+
+    @api.constrains('availability_status', 'car_company_id')
+    def _check_not_available_if_company_inactive(self):
+        for vehicle in self:
+            if vehicle.car_company_id and not vehicle.car_company_id.is_active and vehicle.availability_status == 'san_sang':
+                raise ValidationError(_(
+                    "Không thể đặt trạng thái xe là 'Sẵn sàng' nếu công ty gắn với xe không hoạt động."
+                ))

@@ -24,6 +24,7 @@
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="fleet_vehicle_ids"/>
                 <field name="fax"/>
                 <field name="address"/>
                 <field name="primary_contact_person"/>

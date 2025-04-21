@@ -11,7 +11,7 @@ class CarCompany(models.Model):
     address= fields.Char(string="Địa chỉ" ,required=True)
     primary_contact_person = fields.Char(string="Người liên hệ chính",required=True)
     is_active = fields.Boolean(string="Đang hoạt động", default=True)
-
+    fleet_vehicle_ids = fields.One2many("fleet.vehicle" , "car_company_id",string="Danh sách xe")
 
     @api.constrains('name')
     def _check_unique_name(self):

@@ -302,11 +302,15 @@ class CarBooking(models.Model):
                     "Không thể đặt xe thuộc công ty đang ngưng hoạt động."
                 )
 
-    @api.constrains('customer_id', 'vehicle_id', 'driver_id', 'pickup_date', 'return_date')
-    def _check_editable_state(self):
+    def write(self, vals):
         for record in self:
+            # Nếu chỉ update trạng thái thì cho phép
+            if set(vals.keys()) == {'state'}:
+                continue
+
             if record.state in ['xac_nhan', 'dang_thuc_hien', 'hoan_thanh']:
                 raise ValidationError(_(
-                    "Không thể chỉnh sửa đơn đặt xe khi đơn đang ở trạng thái '%s'." %
-                    dict(self.fields_get(['state'])['state']['selection']).get(record.state)
-                ))
+                    "Không thể chỉnh sửa đơn đặt xe khi đơn đang ở trạng thái '%s'."
+                ) % dict(self.fields_get(['state'])['state']['selection']).get(record.state))
+
+        return super().write(vals)

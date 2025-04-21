@@ -32,6 +32,7 @@
                 <field name="name"/>
                 <field name="role"/>
                 <field name="phone"/>
+                <field name="car_booking_customer_ids"/>
             </list>
         </field>
     </record>
